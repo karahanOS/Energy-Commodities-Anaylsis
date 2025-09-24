@@ -412,16 +412,18 @@ def organize_news_by_date(news_data):
         link = str(row[link_col]) if link_col else ''
         sentiment_score = float(row[sentiment_col]) if sentiment_col and pd.notna(row[sentiment_col]) else 0
         
+        # ✅ Link normalization
+        if link and not link.startswith(("http://", "https://")):
+            link = "https://" + link.strip()
+        
         # Try to parse and standardize the date
         try:
-            # Remove time part if present and take only date portion
             date_key = date_str.split()[0] if ' ' in date_str else date_str
-            # Convert to proper date format
             parsed_date = pd.to_datetime(date_key, errors='coerce')
             if pd.notna(parsed_date):
                 date_key = parsed_date.strftime('%Y-%m-%d')
             else:
-                date_key = date_key[:10]  # Take first 10 characters for YYYY-MM-DD
+                date_key = date_key[:10]
         except:
             date_key = date_str[:10] if len(date_str) >= 10 else date_str
         
@@ -439,6 +441,7 @@ def organize_news_by_date(news_data):
     # Sort dates in descending order (newest first)
     sorted_dates = sorted(news_by_date.keys(), reverse=True)
     return {date: news_by_date[date] for date in sorted_dates}
+
 
 def display_news_with_sentiment(news_data, commodity_name):
     """Display news with sentiment analysis and date-based organization"""
@@ -463,7 +466,7 @@ def display_news_with_sentiment(news_data, commodity_name):
         st.markdown(f"<div class='metric-card'><span class='neutral-sentiment'>😐 Neutral: {sentiment['neutral']}</span></div>", unsafe_allow_html=True)
     with col5:
         avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#000000"
-        st.markdown(f"<div class='metric-card'><span style='color:  {avg_color}; font-weight: bold;'>📈 Avg Score: {sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'><span style='color:  {avg_color}; font-weight: bold;'>📈 Avg Score: same{sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
     
     # Organize news by date
     news_by_date = organize_news_by_date(news_data)
