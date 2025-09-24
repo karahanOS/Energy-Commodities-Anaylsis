@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_option_menu import option_menu
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -84,6 +83,13 @@ st.markdown("""
         font-size: 0.8rem;
         font-weight: bold;
         margin-left: 0.5rem;
+    }
+    .commodity-selector {
+        background: linear-gradient(90deg, #1f77b4, #4a90e2);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -659,12 +665,13 @@ def main():
     with st.sidebar:
         st.header("🔧 Dashboard Controls")
         
-        selected = option_menu(
-            menu_title="Commodity Selection",
+        # Replace option_menu with native Streamlit radio
+        st.markdown('<div class="commodity-selector">🔋 Commodity Selection</div>', unsafe_allow_html=True)
+        selected = st.radio(
+            "Choose Commodity:",
             options=["Crude Oil", "LNG"],
-            icons=["fuel-pump", "fire"],
-            menu_icon="activity",
-            default_index=0,
+            index=0,
+            label_visibility="collapsed"
         )
         
         st.markdown("---")
