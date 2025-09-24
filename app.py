@@ -248,7 +248,6 @@ def create_advanced_price_chart(df, commodity_name):
     fig.update_layout(height=600, title_text=f"{commodity_name} Advanced Analysis")
     return fig
 
-def create_price_sentiment_comparison_chart(price_data, news_data, commodity_name):
     """Create a comparison chart between price and sentiment scores"""
     if price_data.empty or news_data.empty:
         fig = px.line(title=f'{commodity_name} Price vs Sentiment')
