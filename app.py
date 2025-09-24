@@ -452,12 +452,13 @@ def display_news_with_sentiment(news_data, commodity_name):
     # Sentiment analysis using existing scores
     sentiment = analyze_sentiment(news_data)
     avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#000000"
+    
     # Sentiment summary
     st.markdown("---")
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.markdown(f"<div class='metric-card'><span style='color: {avg_color}; font-weight: bold;'> 📊 Total News: {sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'><span style='color: {avg_color}; font-weight: bold;'> 📊 Total News: {sentiment['total']}</span></div>", unsafe_allow_html=True)
     with col2:
         st.markdown(f"<div class='metric-card'><span class='positive-sentiment'>👍 Positive: {sentiment['positive']}</span></div>", unsafe_allow_html=True)
     with col3:
@@ -465,8 +466,7 @@ def display_news_with_sentiment(news_data, commodity_name):
     with col4:
         st.markdown(f"<div class='metric-card'><span class='neutral-sentiment'>😐 Neutral: {sentiment['neutral']}</span></div>", unsafe_allow_html=True)
     with col5:
-        avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#000000"
-        st.markdown(f"<div class='metric-card'><span style='color:  {avg_color}; font-weight: bold;'>📈 Avg Score: same{sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'><span style='color:  {avg_color}; font-weight: bold;'>📈 Avg Score: {sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
     
     # Organize news by date
     news_by_date = organize_news_by_date(news_data)
@@ -478,7 +478,6 @@ def display_news_with_sentiment(news_data, commodity_name):
     # News display with date sections
     st.markdown(f"### 📰 Recent {commodity_name} News (Using Pre-calculated Sentiment Scores)")
     
-    # Add a slider to navigate through dates
     dates = list(news_by_date.keys())
     if len(dates) > 1:
         st.markdown("#### 📅 Navigate by Date")
@@ -489,11 +488,8 @@ def display_news_with_sentiment(news_data, commodity_name):
             value=0,
             format="Date: {}"
         )
-        
-        # Display news for the selected date and a few previous dates
         start_idx = max(0, selected_date_index)
-        end_idx = min(len(dates), selected_date_index + 3)  # Show 3 days at a time
-        
+        end_idx = min(len(dates), selected_date_index + 3)  
         dates_to_show = dates[start_idx:end_idx]
     else:
         dates_to_show = dates
@@ -502,10 +498,8 @@ def display_news_with_sentiment(news_data, commodity_name):
     for date in dates_to_show:
         news_items = news_by_date[date]
         
-        # Date header
         st.markdown(f"<div class='date-header'>📅 {date} ({len(news_items)} news items)</div>", unsafe_allow_html=True)
         
-        # News items for this date
         for i, news_item in enumerate(news_items, 1):
             title = news_item['title']
             link = news_item['link']
@@ -513,7 +507,6 @@ def display_news_with_sentiment(news_data, commodity_name):
             sentiment_score = news_item['sentiment_score']
             sentiment_category = news_item['sentiment_category']
             
-            sentiment_class = f"{sentiment_category}-sentiment"
             sentiment_color = get_sentiment_color(sentiment_score)
             
             st.markdown(f"""
@@ -526,13 +519,15 @@ def display_news_with_sentiment(news_data, commodity_name):
                     </span>
                 </div>
                 <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">
-                    <span class='{sentiment_class}'>{title}</span>
+                    {title}
                 </div>
-                {f"<a href='{link}' target='_blank' style='color: #1f77b4; text-decoration: none;'>🔗 Read full article</a>" if link and link.strip() else ""}
             </div>
             """, unsafe_allow_html=True)
+
+            # ✅ Yeni: Dış link butonu
+            if link and link.strip():
+                st.link_button("🔗 Read full article", link)
     
-    # Show date navigation info
     if len(dates) > 1:
         st.info(f"📋 Showing {len(dates_to_show)} of {len(dates)} date(s). Use the slider above to navigate through different dates.")
 
