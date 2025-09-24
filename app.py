@@ -454,7 +454,7 @@ def display_news_with_sentiment(news_data, commodity_name):
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.markdown(f"<div class='metric-card'>📊 Total News: <span style='color: {avg_color}; font-weight: bold;'>{sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'><span style='color: {avg_color}; font-weight: bold;'> 📊 Total News: {sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
     with col2:
         st.markdown(f"<div class='metric-card'><span class='positive-sentiment'>👍 Positive: {sentiment['positive']}</span></div>", unsafe_allow_html=True)
     with col3:
@@ -463,7 +463,7 @@ def display_news_with_sentiment(news_data, commodity_name):
         st.markdown(f"<div class='metric-card'><span class='neutral-sentiment'>😐 Neutral: {sentiment['neutral']}</span></div>", unsafe_allow_html=True)
     with col5:
         avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#000000"
-        st.markdown(f"<div class='metric-card'>📈 Avg Score: <span style='color: {avg_color}; font-weight: bold;'>{sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'><span style='color: 📈 Avg Score: {avg_color}; font-weight: bold;'>{sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
     
     # Organize news by date
     news_by_date = organize_news_by_date(news_data)
