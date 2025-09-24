@@ -448,13 +448,13 @@ def display_news_with_sentiment(news_data, commodity_name):
     
     # Sentiment analysis using existing scores
     sentiment = analyze_sentiment(news_data)
-    
+    avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#000000"
     # Sentiment summary
     st.markdown("---")
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.markdown(f"<div class='metric-card'>📊 Total News: {sentiment['total']}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'>📊 Total News: <span style='color: {avg_color}; font-weight: bold;'>{sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
     with col2:
         st.markdown(f"<div class='metric-card'><span class='positive-sentiment'>👍 Positive: {sentiment['positive']}</span></div>", unsafe_allow_html=True)
     with col3:
@@ -553,7 +553,6 @@ def main():
         show_advanced = st.checkbox("Show Advanced Analytics", value=True)
         show_correlation = st.checkbox("Show Correlation Analysis", value=True)
         show_news = st.checkbox("Show News Analysis", value=True)
-        show_price_sentiment = st.checkbox("Show Price vs Sentiment Analysis", value=True)
         
         # News display options
         if show_news:
