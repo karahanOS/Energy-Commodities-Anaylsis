@@ -374,49 +374,119 @@ def get_sentiment_color(score):
     else:
         return "#6c757d"  # Gray for neutral
 
-def organize_news_by_date(news_data):
-    """Organize news data by date for better navigation"""
+import re
+
+def organize_news_by_date(news_data, debug=False):
+    """Organize news data by date for better navigation (robust link-column detection)"""
     if news_data.empty:
         return {}
     
-    # Find date and title columns
-    date_col, title_col, link_col, sentiment_col = None, None, None, None
+    def is_probable_url(val):
+        if pd.isna(val):
+            return False
+        s = str(val).strip()
+        if not s:
+            return False
+        # absolute http/https -> definitely a URL
+        if s.startswith(("http://", "https://")):
+            return True
+        # avoid values with spaces (likely not a URL)
+        if ' ' in s:
+            return False
+        # simple domain pattern (example.com or example.com/whatever)
+        return bool(re.search(r'[A-Za-z0-9-]+\.[A-Za-z]{2,6}(/|$)', s))
     
-    for col in news_data.columns:
-        col_lower = str(col).lower()
-        if 'date' in col_lower:
-            date_col = col
-        elif 'title' in col_lower or 'headline' in col_lower:
-            title_col = col
-        elif 'link' in col_lower or 'url' in col_lower:
-            link_col = col
-        elif 'sentiment' in col_lower:
-            sentiment_col = col
+    def is_date_like(val):
+        try:
+            parsed = pd.to_datetime(val, errors='coerce')
+            return pd.notna(parsed)
+        except:
+            return False
     
-    # Use fallbacks if specific columns not found
-    if date_col is None and len(news_data.columns) > 0:
-        date_col = news_data.columns[0]
-    if title_col is None and len(news_data.columns) > 1:
-        title_col = news_data.columns[1]
-    if link_col is None and len(news_data.columns) > 2:
-        link_col = news_data.columns[2]
-    if sentiment_col is None and 'sentiment' in news_data.columns:
-        sentiment_col = 'sentiment'
+    def sample_score_for_urls(col):
+        sample = news_data[col].dropna().astype(str).head(50).tolist()
+        if not sample:
+            return 0.0, 0.0
+        url_count = sum(is_probable_url(v) for v in sample)
+        date_count = sum(is_date_like(v) for v in sample)
+        return url_count / len(sample), date_count / len(sample)
     
-    # Convert dates to proper format and group by date
+    # keyword-based candidates
+    date_keywords = ['date', 'time', 'timestamp', 'published', 'pub']
+    title_keywords = ['title', 'headline', 'head', 'summary', 'desc']
+    link_keywords = ['link', 'url', 'href', 'source', 'website', 'web', 'article', 'uri']
+    sentiment_keywords = ['sentiment', 'score', 'polarity']
+    
+    def cols_with_keywords(keywords):
+        return [c for c in news_data.columns if any(k in c.lower() for k in keywords)]
+    
+    date_candidates = cols_with_keywords(date_keywords)
+    title_candidates = cols_with_keywords(title_keywords)
+    link_candidates = cols_with_keywords(link_keywords)
+    sentiment_candidates = cols_with_keywords(sentiment_keywords)
+    
+    # pick best date column: prefer name-match, else choose the column with most date-like values
+    date_col = None
+    if date_candidates:
+        date_col = date_candidates[0]
+    else:
+        best = (None, 0.0)
+        for c in news_data.columns:
+            _, date_frac = sample_score_for_urls(c)
+            if date_frac > best[1]:
+                best = (c, date_frac)
+        date_col = best[0]
+    
+    # pick title column: prefer name-match, else pick first string-like column
+    title_col = None
+    if title_candidates:
+        title_col = title_candidates[0]
+    else:
+        for c in news_data.columns:
+            # choose a column where at least one non-empty string exists and values are not dates/urls
+            sample = news_data[c].dropna().astype(str).head(20).tolist()
+            if sample and not all(is_date_like(v) or is_probable_url(v) for v in sample):
+                title_col = c
+                break
+    
+    # pick link column: prefer explicit name-match candidates, else find best-scoring column by URL fraction
+    link_col = None
+    candidate_pool = link_candidates if link_candidates else list(news_data.columns)
+    best_score = 0.0
+    for c in candidate_pool:
+        url_frac, date_frac = sample_score_for_urls(c)
+        # prefer columns that look like urls and not mostly dates
+        if url_frac > best_score and date_frac < 0.6:
+            best_score = url_frac
+            link_col = c
+    
+    # final safety: if best_score is tiny, give up on link_col (no reliable link column)
+    if best_score < 0.10:
+        link_col = None
+    
+    # sentiment column fallback
+    sentiment_col = sentiment_candidates[0] if sentiment_candidates else ('sentiment' if 'sentiment' in news_data.columns else None)
+    
+    if debug:
+        st.info(f"Detected columns -> date: {date_col}, title: {title_col}, link: {link_col}, sentiment: {sentiment_col}")
+    
+    # Build grouped news_by_date
     news_by_date = {}
-    
     for _, row in news_data.iterrows():
-        date_str = str(row[date_col]) if date_col else 'Unknown Date'
-        title = str(row[title_col]) if title_col else 'No Title'
-        link = str(row[link_col]) if link_col else ''
-        sentiment_score = float(row[sentiment_col]) if sentiment_col and pd.notna(row[sentiment_col]) else 0
+        date_str = str(row[date_col]) if date_col and pd.notna(row[date_col]) else 'Unknown Date'
+        title = str(row[title_col]) if title_col and pd.notna(row[title_col]) else 'No Title'
+        link = str(row[link_col]) if link_col and pd.notna(row[link_col]) else ''
+        sentiment_score = float(row[sentiment_col]) if sentiment_col and pd.notna(row[sentiment_col]) else 0.0
         
-        # ✅ Link normalization
-        if link and not link.startswith(("http://", "https://")):
+        # Normalize/validate link: if not starting with http(s) but looks like domain, prefix https://
+        if link and not link.startswith(("http://", "https://")) and is_probable_url(link):
             link = "https://" + link.strip()
         
-        # Try to parse and standardize the date
+        # if link looks date-like (bad pick), ignore it
+        if link and is_date_like(link):
+            link = ""
+        
+        # Standardize date key (YYYY-MM-DD)
         try:
             date_key = date_str.split()[0] if ' ' in date_str else date_str
             parsed_date = pd.to_datetime(date_key, errors='coerce')
@@ -438,9 +508,10 @@ def organize_news_by_date(news_data):
             'sentiment_category': get_sentiment_category(sentiment_score)
         })
     
-    # Sort dates in descending order (newest first)
+    # Sort dates in descending order
     sorted_dates = sorted(news_by_date.keys(), reverse=True)
     return {date: news_by_date[date] for date in sorted_dates}
+
 
 
 def display_news_with_sentiment(news_data, commodity_name):
@@ -452,13 +523,12 @@ def display_news_with_sentiment(news_data, commodity_name):
     # Sentiment analysis using existing scores
     sentiment = analyze_sentiment(news_data)
     avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#000000"
-    
     # Sentiment summary
     st.markdown("---")
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.markdown(f"<div class='metric-card'><span style='color: {avg_color}; font-weight: bold;'> 📊 Total News: {sentiment['total']}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'><span style='color: {avg_color}; font-weight: bold;'> 📊 Total News: {sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
     with col2:
         st.markdown(f"<div class='metric-card'><span class='positive-sentiment'>👍 Positive: {sentiment['positive']}</span></div>", unsafe_allow_html=True)
     with col3:
@@ -466,7 +536,8 @@ def display_news_with_sentiment(news_data, commodity_name):
     with col4:
         st.markdown(f"<div class='metric-card'><span class='neutral-sentiment'>😐 Neutral: {sentiment['neutral']}</span></div>", unsafe_allow_html=True)
     with col5:
-        st.markdown(f"<div class='metric-card'><span style='color:  {avg_color}; font-weight: bold;'>📈 Avg Score: {sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
+        avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#000000"
+        st.markdown(f"<div class='metric-card'><span style='color:  {avg_color}; font-weight: bold;'>📈 Avg Score: same{sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
     
     # Organize news by date
     news_by_date = organize_news_by_date(news_data)
@@ -478,6 +549,7 @@ def display_news_with_sentiment(news_data, commodity_name):
     # News display with date sections
     st.markdown(f"### 📰 Recent {commodity_name} News (Using Pre-calculated Sentiment Scores)")
     
+    # Add a slider to navigate through dates
     dates = list(news_by_date.keys())
     if len(dates) > 1:
         st.markdown("#### 📅 Navigate by Date")
@@ -488,8 +560,11 @@ def display_news_with_sentiment(news_data, commodity_name):
             value=0,
             format="Date: {}"
         )
+        
+        # Display news for the selected date and a few previous dates
         start_idx = max(0, selected_date_index)
-        end_idx = min(len(dates), selected_date_index + 3)  
+        end_idx = min(len(dates), selected_date_index + 3)  # Show 3 days at a time
+        
         dates_to_show = dates[start_idx:end_idx]
     else:
         dates_to_show = dates
@@ -498,8 +573,10 @@ def display_news_with_sentiment(news_data, commodity_name):
     for date in dates_to_show:
         news_items = news_by_date[date]
         
+        # Date header
         st.markdown(f"<div class='date-header'>📅 {date} ({len(news_items)} news items)</div>", unsafe_allow_html=True)
         
+        # News items for this date
         for i, news_item in enumerate(news_items, 1):
             title = news_item['title']
             link = news_item['link']
@@ -507,6 +584,7 @@ def display_news_with_sentiment(news_data, commodity_name):
             sentiment_score = news_item['sentiment_score']
             sentiment_category = news_item['sentiment_category']
             
+            sentiment_class = f"{sentiment_category}-sentiment"
             sentiment_color = get_sentiment_color(sentiment_score)
             
             st.markdown(f"""
@@ -519,15 +597,13 @@ def display_news_with_sentiment(news_data, commodity_name):
                     </span>
                 </div>
                 <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">
-                    {title}
+                    <span class='{sentiment_class}'>{title}</span>
                 </div>
+                {f"<a href='{link}' target='_blank' style='color: #1f77b4; text-decoration: none;'>🔗 Read full article</a>" if link and link.strip() else ""}
             </div>
             """, unsafe_allow_html=True)
-
-            # ✅ Güvenli link (markdown ile)
-            if link and link.strip():
-                st.markdown(f"[🔗 Read full article]({link})")
     
+    # Show date navigation info
     if len(dates) > 1:
         st.info(f"📋 Showing {len(dates_to_show)} of {len(dates)} date(s). Use the slider above to navigate through different dates.")
 
