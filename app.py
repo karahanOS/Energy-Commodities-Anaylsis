@@ -248,132 +248,6 @@ def create_advanced_price_chart(df, commodity_name):
     fig.update_layout(height=600, title_text=f"{commodity_name} Advanced Analysis")
     return fig
 
-    """Create a comparison chart between price and sentiment scores"""
-    if price_data.empty or news_data.empty:
-        fig = px.line(title=f'{commodity_name} Price vs Sentiment')
-        fig.update_layout(height=400)
-        return fig
-    
-    # Check if required columns exist
-    if 'Date' not in price_data.columns or 'Close' not in price_data.columns:
-        fig = px.line(title=f'{commodity_name} Price vs Sentiment - Missing Data')
-        fig.update_layout(height=400)
-        return fig
-    
-    if 'date' not in [col.lower() for col in news_data.columns] or 'sentiment' not in news_data.columns:
-        fig = px.line(title=f'{commodity_name} Price vs Sentiment - Missing Sentiment Data')
-        fig.update_layout(height=400)
-        return fig
-    
-    # Find date column in news data
-    date_col_news = None
-    for col in news_data.columns:
-        if 'date' in col.lower():
-            date_col_news = col
-            break
-    
-    if date_col_news is None:
-        fig = px.line(title=f'{commodity_name} Price vs Sentiment - No Date Column in News')
-        fig.update_layout(height=400)
-        return fig
-    
-    # Prepare news data: aggregate sentiment by date
-    try:
-        # Convert news date to datetime and extract date part
-        news_data_clean = news_data.copy()
-        news_data_clean['news_date'] = pd.to_datetime(news_data_clean[date_col_news], errors='coerce')
-        news_data_clean = news_data_clean.dropna(subset=['news_date', 'sentiment'])
-        
-        # Group by date and calculate daily sentiment metrics
-        daily_sentiment = news_data_clean.groupby(news_data_clean['news_date'].dt.date).agg({
-            'sentiment': ['mean', 'count', 'std']
-        }).round(4)
-        
-        # Flatten column names
-        daily_sentiment.columns = ['sentiment_mean', 'sentiment_count', 'sentiment_std']
-        daily_sentiment = daily_sentiment.reset_index()
-        daily_sentiment['news_date'] = pd.to_datetime(daily_sentiment['news_date'])
-        
-    except Exception as e:
-        st.warning(f"Error processing sentiment data: {e}")
-        fig = px.line(title=f'{commodity_name} Price vs Sentiment - Processing Error')
-        fig.update_layout(height=400)
-        return fig
-    
-    # Create subplots with secondary y-axis
-    fig = make_subplots(
-        specs=[[{"secondary_y": True}]],
-        subplot_titles=(f'{commodity_name} Price vs Sentiment Analysis',)
-    )
-    
-    # Price line (primary y-axis)
-    fig.add_trace(
-        go.Scatter(
-            x=price_data['Date'], 
-            y=price_data['Close'], 
-            name='Price',
-            line=dict(color='#1f77b4', width=3),
-            opacity=0.8
-        ),
-        secondary_y=False
-    )
-    
-    # Sentiment line (secondary y-axis) - only if we have sentiment data
-    if not daily_sentiment.empty:
-        fig.add_trace(
-            go.Scatter(
-                x=daily_sentiment['news_date'], 
-                y=daily_sentiment['sentiment_mean'], 
-                name='Avg Sentiment',
-                line=dict(color='#ff7f0e', width=2),
-                opacity=0.7,
-                mode='lines+markers',
-                marker=dict(
-                    size=6,
-                    color=daily_sentiment['sentiment_count'],
-                    colorscale='Viridis',
-                    showscale=True,
-                    colorbar=dict(title="News Count")
-                )
-            ),
-            secondary_y=True
-        )
-        
-        # Add sentiment count as bars in background
-        fig.add_trace(
-            go.Bar(
-                x=daily_sentiment['news_date'],
-                y=daily_sentiment['sentiment_count'],
-                name='News Count',
-                opacity=0.2,
-                marker_color='lightgray',
-                yaxis='y2'
-            ),
-            secondary_y=True
-        )
-    
-    # Update layout
-    fig.update_layout(
-        height=500,
-        title_text=f"{commodity_name}: Price vs Sentiment Correlation",
-        hovermode='x unified',
-        showlegend=True
-    )
-    
-    # Set y-axes titles
-    fig.update_yaxes(
-        title_text="Price ($)",
-        secondary_y=False,
-        tickprefix="$"
-    )
-    
-    fig.update_yaxes(
-        title_text="Sentiment Score & News Count",
-        secondary_y=True,
-        range=[-1.1, 1.1]  # Fixed range for sentiment scores
-    )
-    
-    return fig
 
 def create_correlation_heatmap(df, commodity_name):
     """Create correlation heatmap for numerical columns"""
@@ -588,7 +462,7 @@ def display_news_with_sentiment(news_data, commodity_name):
     with col4:
         st.markdown(f"<div class='metric-card'><span class='neutral-sentiment'>😐 Neutral: {sentiment['neutral']}</span></div>", unsafe_allow_html=True)
     with col5:
-        avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#6c757d"
+        avg_color = "#28a745" if sentiment['avg_sentiment'] > 0.1 else "#dc3545" if sentiment['avg_sentiment'] < -0.1 else "#000000"
         st.markdown(f"<div class='metric-card'>📈 Avg Score: <span style='color: {avg_color}; font-weight: bold;'>{sentiment['avg_sentiment']:.3f}</span></div>", unsafe_allow_html=True)
     
     # Organize news by date
