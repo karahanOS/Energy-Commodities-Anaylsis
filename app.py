@@ -524,9 +524,9 @@ def display_news_with_sentiment(news_data, commodity_name):
             </div>
             """, unsafe_allow_html=True)
 
-            # ✅ Yeni: Dış link butonu
+            # ✅ Güvenli link (markdown ile)
             if link and link.strip():
-                st.link_button("🔗 Read full article", link)
+                st.markdown(f"[🔗 Read full article]({link})")
     
     if len(dates) > 1:
         st.info(f"📋 Showing {len(dates_to_show)} of {len(dates)} date(s). Use the slider above to navigate through different dates.")
