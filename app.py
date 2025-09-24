@@ -597,28 +597,6 @@ def main():
     with st.expander("View Raw Data", expanded=False):
         st.dataframe(price_data, use_container_width=True)
     
-    # Price vs Sentiment Comparison Chart
-    if show_price_sentiment and not news_data.empty and 'sentiment' in news_data.columns:
-        st.markdown("## 📈 Price vs Sentiment Analysis")
-        st.plotly_chart(
-            create_price_sentiment_comparison_chart(price_data, news_data, selected), 
-            use_container_width=True
-        )
-        
-        # Add some insights
-        with st.expander("💡 Analysis Insights", expanded=False):
-            st.markdown("""
-            **How to interpret this chart:**
-            - **Blue line**: Commodity price movement over time
-            - **Orange line**: Average daily sentiment score (right axis)
-            - **Marker size/color**: Number of news articles per day
-            - **Gray bars**: Daily news count (right axis)
-            
-            **Look for patterns like:**
-            - Do price increases follow positive sentiment spikes?
-            - Do negative sentiment periods precede price drops?
-            - Is there a correlation between news volume and price volatility?
-            """)
     
     # Advanced Charts
     if show_advanced:
