@@ -717,7 +717,12 @@ def main():
     - **Price Data**: Yahoo Finance via yfinance library
     - **News Data**: NewsAPI and web scraping
     - **File Format**: Excel (.xlsx) files
-    - **Last Updated**: Automatically refreshed hourly
+    - **Last Updated**: Refreshed Weekly
+    - **Contact**: mehmetkarahanc@gmail.com
+    - **GitHub**: [github.com/karahanos]
+    - **LinkedIn**: [linkedin.com/in/karahan-cetinkaya]
+    
+    - **Disclaimer**: This dashboard is for educational purposes only. Not financial advice.
     """)
     
     st.markdown("---")
